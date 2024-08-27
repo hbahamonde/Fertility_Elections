@@ -73,7 +73,7 @@ fertility.d$Pregnancy = ifelse(fertility.d$ycldbyr != 0, fertility.d$ycldbyr-1, 
 #
 fertility.d <- fertility.d %>% select(Country, Pregnancy, ycldbyr, everything()) 
 
-# drop if older than 1998 (election data is from 1998 onwards)
+# drop if older than 1998 (election data is from 1998 on wards)
 fertility.d = subset(fertility.d, Pregnancy >=1998 | Pregnancy == 0)
 
 # Election Data
@@ -84,7 +84,7 @@ p_load(readxl)
 electoral.d = read_excel("/Users/hectorbahamonde/research/Fertility_Elections/electoral_calendar_data/electoral_calendar_data.xlsx")
 
 # exclude Senate elections
-p_load(dplyr)
+p_load(dplyr,stringr)
 electoral.d = electoral.d %>% 
   filter(!str_detect(Election, 'Senate'))
 
@@ -98,6 +98,7 @@ electoral.d$Date = as.Date(electoral.d$Date, format = "%Y-%m-%d")
 
 # create merged df
 ## Extract the year from the election date
+p_load(lubridate)
 electoral.d <- electoral.d %>%
   mutate(Year = year(Date))
 
@@ -112,12 +113,28 @@ compute_min_distance <- function(preg_year, country, elections) {
   }
 }
 
+## Function to compute the minimum distance to the closest next pre-election year
+compute_min_distance_pre_election <- function(preg_year, country, elections) {
+  prev_elections <- elections %>%
+    filter(Country == country, Year <= preg_year)
+  if (nrow(prev_elections) > 0) {
+    preg_year - max(prev_elections$Year)
+  } else {
+    NA  # In case there is no previous election before the pregnancy year
+  }
+}
+
 ## Apply the function to each row of pregnancy data
 fertility.d <- fertility.d %>% rowwise() %>% mutate(Next.Election.Years = compute_min_distance(Pregnancy, Country, electoral.d))
 
+## Apply the function to each row of pregnancy data
+fertility.d <- fertility.d %>% rowwise() %>% mutate(Prior.Election.Years = compute_min_distance_pre_election(Pregnancy, Country, electoral.d))
+fertility.d$Prior.Election.Years = -1*(fertility.d$Prior.Election.Years)
+
+
 # order columns
 p_load(tidyverse)
-fertility.d <- fertility.d %>% select(Country, Pregnancy, ycldbyr, Next.Election.Years, everything()) 
+fertility.d <- fertility.d %>% select(Country, Pregnancy, ycldbyr, Prior.Election.Years, Next.Election.Years, everything()) 
 
 # cut is the last electoral year. If the last election was in 2018, and Pregancy is 2019 == NA
 # Drop NA
@@ -125,8 +142,28 @@ p_load(tidyverse)
 fertility.d = fertility.d %>% drop_na(Next.Election.Years)
 
 
-# HERE below
-lattice::histogram(
+# Net Count of Pregnancies (by country) post-election
+lattice::histogram(~ Next.Election.Years | Country, data = fertility.d, 
+                   type = c("count"), 
+                   nint = 20,
+                   xlab = "Next Election (in years)",
+                   ylab = "Count of Pregnancies",
+                   #scales = list(x = list(at = 0:max(fertility.d$Next.Election.Years, na.rm=T))),
+                   aspect = 1)
+
+# Net Count of Pregnancies (by country) pre-election
+lattice::histogram(~ Prior.Election.Years | Country, data = fertility.d, 
+                   type = c("count"), 
+                   nint = 20,
+                   xlab = "Pre Election (in years)",
+                   ylab = "Count of Pregnancies",
+                   #scales = list(x = list(at = 0:max(fertility.d$Next.Election.Years, na.rm=T))),
+                   aspect = 1)
+
+p_load(gridExtra) 
+
+# Net Count of Pregnancies (next elections)
+p1 = lattice::histogram(
   fertility.d$Next.Election.Years, 
   type = c("count"), # "percent", "count", "density"
   nint=20,#,
@@ -136,11 +173,22 @@ lattice::histogram(
   #breaks = 0:max(fertility.d$Next.Election.Years),
   scales = list(x = list(at = 0:max(fertility.d$Next.Election.Years))),
   aspect = 1
-  )
+)
 
+# Net Count of Pregnancies (pre elections)
+p2= lattice::histogram(
+  fertility.d$Prior.Election.Years, 
+  type = c("count"), # "percent", "count", "density"
+  nint=20,#,
+  xlab = "Pre Election (in years)",
+  ylab = "Count of Pregnancies",
+  #xlim= c(min(fertility.d$Next.Election.Years), max(fertility.d$Next.Election.Years)),
+  #breaks = 0:max(fertility.d$Next.Election.Years),
+  #scales = list(x = list(at = 0:max(fertility.d$Prior.Election.Years))),
+  aspect = 1
+)
 
-
-
+grid.arrange(p1, 22, ncol = 1) 
 
 # controls
 ## polintr How interested in politics
