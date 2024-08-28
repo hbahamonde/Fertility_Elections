@@ -141,6 +141,41 @@ fertility.d <- fertility.d %>% select(Country, Pregnancy, ycldbyr, Prior.Electio
 p_load(tidyverse)
 fertility.d = fertility.d %>% drop_na(Next.Election.Years)
 
+# export electoral.d to stata
+p_load(foreign)
+write.dta(electoral.d, "/Users/hectorbahamonde/research/Fertility_Elections/electoral_calendar.dta")
+
+# age variable
+## yrbrn = born year
+## inwyys = start of the interview
+fertility.d$Age = fertility.d$inwyys - fertility.d$yrbrn
+
+# age at first pregnancy
+fertility.d$Age.at.Pregn = fertility.d$Pregnancy - fertility.d$yrbrn
+
+# drop weird ages
+fertility.d = subset(fertility.d, yrbrn < 2024)
+
+# keep folks in reproductive age 
+fertility.d = fertility.d %>% filter(Age.at.Pregn <= 45 & Age.at.Pregn >= 18)
+
+
+fertility.d = fertility.d %>% select(
+  Country,
+  yrbrn,
+  inwyys,
+  Age,
+  Pregnancy,
+  ycldbyr,  
+  Age.at.Pregn,
+  Prior.Election.Years,
+  Next.Election.Years,
+  everything()) 
+
+
+
+
+
 
 # Net Count of Pregnancies (by country) post-election
 lattice::histogram(~ Next.Election.Years | Country, data = fertility.d, 
@@ -179,16 +214,16 @@ p1 = lattice::histogram(
 p2= lattice::histogram(
   fertility.d$Prior.Election.Years, 
   type = c("count"), # "percent", "count", "density"
-  nint=20,#,
+  nint=10,#,
   xlab = "Pre Election (in years)",
   ylab = "Count of Pregnancies",
   #xlim= c(min(fertility.d$Next.Election.Years), max(fertility.d$Next.Election.Years)),
   #breaks = 0:max(fertility.d$Next.Election.Years),
-  #scales = list(x = list(at = 0:max(fertility.d$Prior.Election.Years))),
+  #scales = list(x = list(at = 0:max(abs(fertility.d$Prior.Election.Years), na.rm = TRUE))),
   aspect = 1
 )
 
-grid.arrange(p1, 22, ncol = 1) 
+grid.arrange(p2, p1, ncol = 2) 
 
 # controls
 ## polintr How interested in politics
