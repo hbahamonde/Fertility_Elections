@@ -173,10 +173,6 @@ fertility.d = fertility.d %>% select(
   everything()) 
 
 
-
-
-
-
 # Net Count of Pregnancies (by country) post-election
 lattice::histogram(~ Next.Election.Years | Country, data = fertility.d, 
                    type = c("count"), 
@@ -235,9 +231,6 @@ grid.arrange(p2, p1, ncol = 2)
 ## lrscale Placement on left right scale
 
 
-
-
-
 fertility.d = fertility.large.d %>%  select(
   id, 
   essround,
@@ -249,3 +242,57 @@ fertility.d = fertility.large.d %>%  select(
   )
 
 fertility.d$id = nrow(fertility.d)
+
+##################
+# Models
+##################
+
+# Poisson for count DV
+p_load(MASS)
+
+# Take the absolute value of fertility.d$Prior.Election.Years,
+fertility.d$abs.Prior.Election.Years = abs(fertility.d$Prior.Election.Years)
+
+# Check distribution
+lattice::histogram(
+  fertility.d$abs.Prior.Election.Years, 
+  type = c("count"), # "percent", "count", "density"
+  nint=10,#,
+  xlab = "Pre Election (in years)",
+  ylab = "Count of Pregnancies",
+  #xlim= c(min(fertility.d$Next.Election.Years), max(fertility.d$Next.Election.Years)),
+  #breaks = 0:max(fertility.d$Next.Election.Years),
+  #scales = list(x = list(at = 0:max(abs(fertility.d$Prior.Election.Years), na.rm = TRUE))),
+  aspect = 1
+)
+
+
+# FE specification: transform Country and Year vectors to factor variable
+fertility.d$Country = as.factor(fertility.d$Country)
+fertility.d$Pregnancy = as.factor(fertility.d$Pregnancy)
+
+
+m1 <- glm(abs.Prior.Election.Years ~ 
+            #trstprl + 
+            lrscale +
+            Country + # country FE
+            Pregnancy, # year FE 
+          family="poisson", 
+          data=fertility.d)
+
+summary(m1)
+
+# HERE
+## https://www.chesdata.eu/ches-europe
+## I am computing the ideology of the parliament (or the party that won most votes).
+
+
+## polintr How interested in politics
+## psppsgva Political system allows people to have a say in what government does
+## trstprl Trust in country's parliament
+## trstplt Trust in politicians
+## trstprt Trust in political parties
+## vote Voted last national election
+## lrscale Placement on left right scale
+
+
