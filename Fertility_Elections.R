@@ -184,6 +184,72 @@ fertility.d = fertility.d %>% dplyr::select(
   Next.Election.Years,
   everything()) 
 
+##################
+# Ideology Dataset
+##################
+
+# HERE
+## https://www.chesdata.eu/ches-europe
+## I am computing the ideology of the parliament (or the party that won most votes).
+
+p_load(foreign)
+data <- read.dta("/Users/hectorbahamonde/research/Fertility_Elections/ches_data/ches.dta")
+
+# recode country names
+p_load(dplyr)
+data$Country = recode(data$country, 
+                       be = "Belgium", 
+                       dk = "Denmark",
+                       ge = "Germany",
+                       gr = "Greece",
+                       esp = "Spain",
+                       fr = "France",
+                       irl = "Ireland",
+                       it = "Italy",
+                       nl = "Netherlands",
+                       uk = "United Kingdom",
+                       por = "Portugal",
+                       aus = "Austria",
+                       fin = "Finland",
+                       sv = "Sweden",
+                       bul = "Bulgaria",
+                       cz = "Czech Republic",
+                       est = "Estonia",
+                       hun = "Hungary",
+                       lat = "Latvia",
+                       lith = "Lithuania",
+                       pol = "Poland",
+                       rom = "Romania",
+                       slo = "Slovakia",
+                       sle = "Slovenia",
+                       cro = "Croatia",
+                       mal = "Malta",
+                       lux = "Luxembourg",
+                       cyp = "Cyprus"
+                       )
+
+# recode country names
+data$Gov = data$govt
+data$Gov = ifelse(data$Gov == 0.5, 1, data$Gov)
+
+# change name of year columns
+data <- rename(data,c('Year2'='electionyear'))
+data <- rename(data,c('Party'='party'))
+data <- rename(data,c('Vote'='vote'))
+data <- rename(data,c('Seat'='seat'))
+data <- rename(data,c('Party.Ideology'='family'))
+
+ideology.d = data %>%  dplyr::select(
+  Country,
+  Year2,
+  Vote,
+  Party,
+  Seat,
+  Party.Ideology,
+  Gov,
+  govt)
+  
+
 ########################
 # Plots
 ########################
@@ -289,9 +355,9 @@ fertility.d$Pregnancy = as.factor(fertility.d$Pregnancy)
 
 m1 <- glm(Preg.Elect.Year ~ 
             # lrscale + 
-           # trstprt * lrscale +
-            trstprl +
-            #Pregnancy + # year FE
+            trstprt * lrscale +
+            # trstprl +
+            # Pregnancy + # year FE
             Country, # country FE 
           family= binomial(link = "logit"), 
           data=fertility.d)
@@ -301,15 +367,12 @@ summary(m1)
 
 p_load(sjPlot,sjmisc,ggplot2)
 
- plot_model(m1, type = "pred", terms = "trstprl")
-# plot_model(m1, type = "int")
+# plot_model(m1, type = "pred", terms = "trstprl")
+ plot_model(m1, type = "int")
 
 
 
 
-# HERE
-## https://www.chesdata.eu/ches-europe
-## I am computing the ideology of the parliament (or the party that won most votes).
 
 
 ## polintr How interested in politics
