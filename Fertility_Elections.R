@@ -12,7 +12,7 @@ fertility.d <- read.csv("/Users/hectorbahamonde/research/Fertility_Elections/ess
 # gen ID variable
 #fertility.large.d$id = as.numeric(rownames(fertility.large.d))
 #p_load(tidyverse)
-#fertility.large.d <- fertility.large.d %>% select(id, everything()) 
+#fertility.large.d <- fertility.large.d %>% dplyr::select(id, everything()) 
 
 # convert to NA or 0, depending on the case
 # fertility.d$ycldbyr[fertility.d$ycldbyr==6666] <- 0 # Not applicable* *) Missing Value ACTIVATE THIS ONE IF WE WANNA STUDY CASES WITHOUT CHILDREN
@@ -71,7 +71,7 @@ fertility.d = fertility.d %>% mutate(Country =
 fertility.d$Pregnancy = ifelse(fertility.d$ycldbyr != 0, fertility.d$ycldbyr-1, 0)
 
 #
-fertility.d <- fertility.d %>% select(Country, Pregnancy, ycldbyr, everything()) 
+fertility.d <- fertility.d %>% dplyr::select(Country, Pregnancy, ycldbyr, everything()) 
 
 # drop if older than 1998 (election data is from 1998 on wards)
 fertility.d = subset(fertility.d, Pregnancy >=1998 | Pregnancy == 0)
@@ -89,7 +89,7 @@ electoral.d = electoral.d %>%
   filter(!str_detect(Election, 'Senate'))
 
 # select usable columns
-electoral.d = electoral.d %>%  select(
+electoral.d = electoral.d %>%  dplyr::select(
   Country, 
   Date)
 
@@ -134,7 +134,7 @@ fertility.d$Prior.Election.Years = -1*(fertility.d$Prior.Election.Years)
 
 # order columns
 p_load(tidyverse)
-fertility.d <- fertility.d %>% select(Country, Pregnancy, ycldbyr, Prior.Election.Years, Next.Election.Years, everything()) 
+fertility.d <- fertility.d %>% dplyr::select(Country, Pregnancy, ycldbyr, Prior.Election.Years, Next.Election.Years, everything()) 
 
 # cut is the last electoral year. If the last election was in 2018, and Pregancy is 2019 == NA
 # Drop NA
@@ -159,8 +159,19 @@ fertility.d = subset(fertility.d, yrbrn < 2024)
 # keep folks in reproductive age 
 fertility.d = fertility.d %>% filter(Age.at.Pregn <= 45 & Age.at.Pregn >= 18)
 
+# recode no answer and don't knows
+p_load(naniar)
+fertility.d = fertility.d %>% replace_with_na(replace = list(trstprl = c(77, 88, 99)))
+fertility.d = fertility.d %>% replace_with_na(replace = list(lrscale = c(77, 88, 99)))
+fertility.d = fertility.d %>% replace_with_na(replace = list(trstplt = c(77, 88, 99)))
+fertility.d = fertility.d %>% replace_with_na(replace = list(trstprt = c(77, 88, 99)))
+fertility.d = fertility.d %>% replace_with_na(replace = list(vote = c(3, 7, 8, 9)))
 
-fertility.d = fertility.d %>% select(
+# recode binary variable: pregnancy on election year
+fertility.d$Preg.Elect.Year = ifelse(fertility.d$Prior.Election.Years == 0 | fertility.d$Prior.Election.Years == -1 , 1, 0)
+
+
+fertility.d = fertility.d %>% dplyr::select(
   Country,
   yrbrn,
   inwyys,
@@ -169,9 +180,13 @@ fertility.d = fertility.d %>% select(
   ycldbyr,  
   Age.at.Pregn,
   Prior.Election.Years,
+  Preg.Elect.Year,
   Next.Election.Years,
   everything()) 
 
+########################
+# Plots
+########################
 
 # Net Count of Pregnancies (by country) post-election
 lattice::histogram(~ Next.Election.Years | Country, data = fertility.d, 
@@ -231,7 +246,7 @@ grid.arrange(p2, p1, ncol = 2)
 ## lrscale Placement on left right scale
 
 
-fertility.d = fertility.large.d %>%  select(
+fertility.d = fertility.large.d %>%  dplyr::select(
   id, 
   essround,
   cntry,
@@ -272,15 +287,25 @@ fertility.d$Country = as.factor(fertility.d$Country)
 fertility.d$Pregnancy = as.factor(fertility.d$Pregnancy)
 
 
-m1 <- glm(abs.Prior.Election.Years ~ 
-            #trstprl + 
-            lrscale +
-            Country + # country FE
-            Pregnancy, # year FE 
-          family="poisson", 
+m1 <- glm(Preg.Elect.Year ~ 
+            # lrscale + 
+           # trstprt * lrscale +
+            trstprl +
+            #Pregnancy + # year FE
+            Country, # country FE 
+          family= binomial(link = "logit"), 
           data=fertility.d)
 
 summary(m1)
+
+
+p_load(sjPlot,sjmisc,ggplot2)
+
+ plot_model(m1, type = "pred", terms = "trstprl")
+# plot_model(m1, type = "int")
+
+
+
 
 # HERE
 ## https://www.chesdata.eu/ches-europe
