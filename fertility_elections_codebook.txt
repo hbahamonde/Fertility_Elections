@@ -1,0 +1,9 @@
+## polintr How interested in politics
+## psppsgva Political system allows people to have a say in what government does
+## trstprl Trust in country's parliament
+## trstplt Trust in politicians
+## trstprt Trust in political parties
+## vote Voted last national election
+## lrscale Placement on left right scale
+## yrbrn year born
+## ycldbyr year baby was born

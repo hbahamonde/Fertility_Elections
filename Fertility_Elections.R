@@ -15,7 +15,7 @@ fertility.d <- read.csv("/Users/hectorbahamonde/research/Fertility_Elections/ess
 #fertility.large.d <- fertility.large.d %>% dplyr::select(id, everything()) 
 
 # convert to NA or 0, depending on the case
-# fertility.d$ycldbyr[fertility.d$ycldbyr==6666] <- 0 # Not applicable* *) Missing Value ACTIVATE THIS ONE IF WE WANNA STUDY CASES WITHOUT CHILDREN
+fertility.d$ycldbyr[fertility.d$ycldbyr==6666] <- 0 # Not applicable* *) Missing Value ACTIVATE THIS ONE IF WE WANNA STUDY CASES WITHOUT CHILDREN
 fertility.d$ycldbyr[fertility.d$ycldbyr==6666] <- NA # Not applicable* *) Missing Value
 fertility.d$ycldbyr[fertility.d$ycldbyr==7777] <- NA # Refusal* *) Missing Value
 fertility.d$ycldbyr[fertility.d$ycldbyr==8888] <- NA # Don't know* *) Missing Value
@@ -74,7 +74,11 @@ fertility.d$Pregnancy = ifelse(fertility.d$ycldbyr != 0, fertility.d$ycldbyr-1, 
 fertility.d <- fertility.d %>% dplyr::select(Country, Pregnancy, ycldbyr, everything()) 
 
 # drop if older than 1998 (election data is from 1998 on wards)
-fertility.d = subset(fertility.d, Pregnancy >=1998 | Pregnancy == 0)
+fertility.d = subset(fertility.d, Pregnancy >=1998 | ycldbyr==0) # | ycldbyr==0 keeps folks WITHOUT children
+
+# drop if Pregnancy == 0
+# fertility.d = subset(fertility.d, Pregnancy >=1998 | Pregnancy == 0)
+
 
 # Election Data
 ## https://www.electionguide.org/election-search/
@@ -157,7 +161,11 @@ fertility.d$Age.at.Pregn = fertility.d$Pregnancy - fertility.d$yrbrn
 fertility.d = subset(fertility.d, yrbrn < 2024)
 
 # keep folks in reproductive age 
-fertility.d = fertility.d %>% filter(Age.at.Pregn <= 45 & Age.at.Pregn >= 18)
+fertility.d = fertility.d %>% filter(Age.at.Pregn <= 45 & Age.at.Pregn >= 18 | ycldbyr==0)
+
+# recode nonsensical data for folks that didn't have babies
+fertility.d$ycldbyr = ifelse(fertility.d$Pregnancy==0, fertility.d$ycldbyr<-0, NA)
+fertility.d$Next.Election.Years = ifelse(fertility.d$Pregnancy==0, fertility.d$Next.Election.Years<-NA, fertility.d$Next.Election.Years)
 
 # recode no answer and don't knows
 p_load(naniar)
@@ -183,6 +191,11 @@ fertility.d = fertility.d %>% dplyr::select(
   Preg.Elect.Year,
   Next.Election.Years,
   everything()) 
+
+# save dta
+p_load(foreign)
+write.dta(fertility.d, "/Users/hectorbahamonde/research/Fertility_Elections/fertility_elections_data.dta")
+
 
 ##################
 # Ideology Dataset
@@ -287,6 +300,7 @@ p1 = lattice::histogram(
   aspect = 1
 )
 
+
 # Net Count of Pregnancies (pre elections)
 p2= lattice::histogram(
   fertility.d$Prior.Election.Years, 
@@ -297,8 +311,9 @@ p2= lattice::histogram(
   #xlim= c(min(fertility.d$Next.Election.Years), max(fertility.d$Next.Election.Years)),
   #breaks = 0:max(fertility.d$Next.Election.Years),
   #scales = list(x = list(at = 0:max(abs(fertility.d$Prior.Election.Years), na.rm = TRUE))),
-  aspect = 1
-)
+  aspect = 1,
+  weights = fertility.d$dweight
+  )
 
 grid.arrange(p2, p1, ncol = 2) 
 
@@ -310,6 +325,7 @@ grid.arrange(p2, p1, ncol = 2)
 ## trstprt Trust in political parties
 ## vote Voted last national election
 ## lrscale Placement on left right scale
+##
 
 
 fertility.d = fertility.large.d %>%  dplyr::select(
@@ -359,7 +375,8 @@ m1 <- glm(Preg.Elect.Year ~
             # trstprl +
             # Pregnancy + # year FE
             Country, # country FE 
-          family= binomial(link = "logit"), 
+          family = poisson(),
+          #family= binomial(link = "logit"), 
           data=fertility.d)
 
 summary(m1)
